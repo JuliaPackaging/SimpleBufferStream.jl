@@ -18,6 +18,7 @@ mutable struct BufferStream <: IO
     BufferStream() = new(Vector{UInt8}[], 1, Threads.Condition(), Threads.Condition(), true)
 end
 
+# Close the stream, writing not allowed (but can still read until `eof()`)
 function close(bs::BufferStream)
     bs.is_open = false
     lock(bs.read_cond) do
@@ -28,31 +29,27 @@ end
 isopen(bs::BufferStream) = bs.is_open
 eof(bs::BufferStream) = !isopen(bs) && isempty(bs.chunks)
 
-function check_open(bs::BufferStream)
+function write(bs::BufferStream, data::Vector{UInt8})
+    # Disallow writing if we're not open
     if !isopen(bs)
         throw(ArgumentError("Stream is closed"))
     end
-end
 
-function write(bs::BufferStream, data::Vector{UInt8})
-    check_open(bs)
+    # Copy the data so that users can't clobber our internal list
     lock(bs.write_cond) do
         push!(bs.chunks, copy(data))
     end
+
+    # Notify anyone who was waiting for some data
     lock(bs.read_cond) do
         notify(bs.read_cond; all=false)
     end
     return length(data)
 end
+
+# Helper methods
 write(bs::BufferStream, x::UInt8) = write(bs, [x])
 unsafe_write(bs::BufferStream, p::Ptr{UInt8}, len::UInt64) = write(bs, unsafe_wrap(Array, p, (len,)))
-
-# Wait for something to write to us.
-function wait(bs::BufferStream)
-    lock(bs.read_cond) do
-        wait(bs.read_cond)
-    end
-end
 
 # Read a single byte.
 function read(bs::BufferStream, ::Type{UInt8})
@@ -72,7 +69,7 @@ function read(bs::BufferStream)
     return ret
 end
 
-# Completely consume the current chunk.
+# Completely consume the first chunk.
 function readavailable(bs::BufferStream)
     lock(bs.read_cond) do
         if isempty(bs.chunks)
@@ -97,7 +94,7 @@ function readavailable(bs::BufferStream)
     end
 end
 
-# Read up to `maxlen` bytes, potentially partially consuming a single chunk.
+# Read up to `maxlen` bytes, potentially partially consuming the first chunk.
 function readbytes!(bs::BufferStream, data::Vector{UInt8}, maxlen::Int)
     lock(bs.read_cond) do
         if isempty(bs.chunks)
