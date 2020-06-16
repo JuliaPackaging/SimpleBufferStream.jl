@@ -1,0 +1,13 @@
+name = "SimpleBufferStream"
+uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
+authors = ["Elliot Saba <staticfloat@gmail.com>"]
+version = "0.1.0"
+
+[extras]
+Gzip_jll = "be1be57a-8558-53c3-a7e5-50095f79957e"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+Tar = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test", "HTTP", "Tar", "Gzip_jll"]
