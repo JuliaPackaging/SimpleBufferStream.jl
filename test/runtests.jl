@@ -173,7 +173,7 @@ end
 using HTTP, Gzip_jll, Tar
 @testset "HTTP.jl streaming" begin
     reg_uuid = "23338594-aafe-5451-b93e-139f81909106"
-    reg_hash = "e414c14b3ff844553817b45c51053fa410ff72fe"
+    reg_hash = "433c8c72652d3230287c72184da6be3325155b64"
     url = "https://us-east.storage.juliahub.com/registry/$(reg_uuid)/$(reg_hash)"
 
     mktemp() do file_path, file_io
