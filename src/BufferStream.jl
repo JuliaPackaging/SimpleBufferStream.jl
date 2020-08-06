@@ -1,5 +1,5 @@
 export BufferStream
-import Base: read, unsafe_read, readbytes!, readavailable, unsafe_write, write, wait, close, eof, isopen
+import Base: read, unsafe_read, readbytes!, readavailable, unsafe_write, write, wait, close, eof, isopen, skip
 
 """
     BufferStream
@@ -131,4 +131,15 @@ function readbytes!(bs::BufferStream, data::Vector{UInt8}, maxlen::Int)
         end
         return length(chunk)
     end
+end
+
+function skip(bs::BufferStream, n::Int)
+    data = Array{UInt8}(undef, min(2*1024*1024, n))
+    while n > 0
+        n -= readbytes!(bs, data, min(length(data), n))
+        if eof(bs)
+            break
+        end
+    end
+    return n
 end

@@ -50,6 +50,18 @@ using SimpleBufferStream, Test
         push!(output, read(bs, UInt8))
     end
     @test output == codeunits("Never have I ever")
+
+    bs = BufferStream()
+    @test write(bs, "Never ") == 6
+    @test write(bs, "have ") == 5
+    @test write(bs, "I ") == 2
+    @test write(bs, "ever") == 4
+    close(bs)
+
+    @test String(readavailable(bs)) == "Never "
+    skip(bs, 7)
+    @test String(readavailable(bs)) == "ever"
+    @test eof(bs)
 end
 
 function tee_task(io_in, io_outs...)
@@ -162,7 +174,7 @@ using HTTP, Gzip_jll, Tar
 @testset "HTTP.jl streaming" begin
     reg_uuid = "23338594-aafe-5451-b93e-139f81909106"
     reg_hash = "e414c14b3ff844553817b45c51053fa410ff72fe"
-    url = "https://us-east.storage.julialang.org/registry/$(reg_uuid)/$(reg_hash)"
+    url = "https://us-east.storage.juliahub.com/registry/$(reg_uuid)/$(reg_hash)"
 
     mktemp() do file_path, file_io
         # Get our ground-truth value:
