@@ -27,9 +27,13 @@ using SimpleBufferStream, Test
     @test buff[1:4] == codeunits("spin")
     @test all(buff[5:8] .== 0)
     @test !eof(bs)
+    @test length(bs) == 6
+    @test mem_usage(bs) == 10
     @test readbytes!(bs, buff, 8) == 6
     @test buff[1:6] == codeunits("locked")
     @test all(buff[7:8] .== 0)
+    @test length(bs) == 0
+    @test mem_usage(bs) == 0
 
     t_cancel = @async begin
         @test readavailable(bs) == UInt8[]
@@ -37,12 +41,13 @@ using SimpleBufferStream, Test
     close(bs)
     wait(t_cancel)
 
-    # Test people who do read!() a bunch:
+    # Test people who do read() a bunch:
     bs = BufferStream()
     @test write(bs, "Never ") == 6
     @test write(bs, "have ") == 5
     @test write(bs, "I ") == 2
     @test write(bs, "ever") == 4
+    @test length(bs) == 17
     close(bs)
 
     output = UInt8[]
@@ -58,10 +63,40 @@ using SimpleBufferStream, Test
     @test write(bs, "ever") == 4
     close(bs)
 
+    @test length(bs) == 17
     @test String(readavailable(bs)) == "Never "
+    @test length(bs) == 11
     skip(bs, 7)
+    @test length(bs) == 4
     @test String(readavailable(bs)) == "ever"
+    @test length(bs) == 0
     @test eof(bs)
+
+    # Test write(bs, ::UInt8)
+    bs = BufferStream()
+    @test write(bs, UInt8(1)) == 1
+    close(bs)
+    @test read(bs) == UInt8[1]
+end
+
+@testset "max_len" begin
+    bs = BufferStream(1000)
+    @test_throws ArgumentError write(bs, zeros(UInt8, 1001))
+    write(bs, zeros(UInt8, 1000))
+    t_write = @async begin
+        t_elapsed = @elapsed write(bs, zeros(UInt8, 1))
+        @test t_elapsed > 0.01
+    end
+    sleep(0.05)
+    @test t_write.state == :runnable
+    # Read a piece of that chunk, show that `max_len` is based off of memory usage, not bytes left to be read:
+    buff = Array{UInt8}(undef, 100)
+    readbytes!(bs, buff, 100)
+    sleep(0.05)
+    @test t_write.state == :runnable
+    # Consume the rest of that chunk so it can be dropped, allowing the pending write to go through
+    readavailable(bs)
+    wait(t_write)
 end
 
 function tee_task(io_in, io_outs...)
@@ -77,6 +112,24 @@ function tee_task(io_in, io_outs...)
         for io_out in io_outs
             close(io_out)
         end
+    end
+end
+
+@testset "Tee'ing" begin
+    mktemp() do fname, io_file
+        input = BufferStream()
+        output = BufferStream()
+        t_tee = tee_task(input, output, io_file)
+
+        write(input, "hello"^1000)
+        write(input, "hello"^100)
+        write(input, "hello"^10)
+        close(input)
+
+        wait(t_tee)
+        @test filesize(fname) == 5*1110
+        @test String(read(output)) == "hello"^1110
+        @test String(read(fname)) == "hello"^1110
     end
 end
 
@@ -103,21 +156,6 @@ function task_fixedsize_chain(io_in, io_out; buffsize=rand(128:512))
 end
 
 @testset "async passing" begin
-    mktemp() do fname, io_file
-        input = BufferStream()
-        output = BufferStream()
-        t_tee = tee_task(input, output, io_file)
-
-        write(input, "hello"^1000)
-        write(input, "hello"^100)
-        write(input, "hello"^10)
-        close(input)
-
-        wait(t_tee)
-        @test filesize(fname) == 5*1110
-        @test String(read(output)) == "hello"^1110
-    end
-
     # Sleepy chaos tests
     tasks = Task[]
     input_buff = BufferStream()
