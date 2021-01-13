@@ -104,17 +104,17 @@ function read(bs::BufferStream)
 end
 
 # Completely consume the first chunk.
-function readavailable(bs::BufferStream)
+function readavailable(bs::BufferStream)::SubArray{UInt8, 1, Vector{UInt8}, Tuple{UnitRange{Int64}}, true}
     lock(bs.read_cond) do
         if isempty(bs.chunks)
             if !isopen(bs)
-                return UInt8[]
+                return view(UInt8[], 1:0)
             end
             wait(bs.read_cond)
-            
+
             # Handle cancellation explicitly
             if isempty(bs.chunks)
-                return UInt8[]
+                return view(UInt8[], 1:0)
             end
         end
 
