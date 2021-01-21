@@ -81,7 +81,6 @@ end
 
 @testset "max_len" begin
     bs = BufferStream(1000)
-    @test_throws ArgumentError write(bs, zeros(UInt8, 1001))
     write(bs, zeros(UInt8, 1000))
     t_write = @async begin
         t_elapsed = @elapsed write(bs, zeros(UInt8, 1))
@@ -96,6 +95,20 @@ end
     @test t_write.state == :runnable
     # Consume the rest of that chunk so it can be dropped, allowing the pending write to go through
     readavailable(bs)
+    wait(t_write)
+    # read the last byte that it outputs
+    @test length(readavailable(bs)) == 1
+
+    # Also test writing a chunk larger than the entire buffer
+    t_write = @async begin
+        t_elapsed = @elapsed write(bs, zeros(UInt8, 3000))
+        @test t_elapsed > 0.01
+    end
+    sleep(0.05)
+    # We need to read three times, as each time we can only read 1000 elements
+    @test length(readavailable(bs)) == 1000
+    @test length(readavailable(bs)) == 1000
+    @test length(readavailable(bs)) == 1000
     wait(t_write)
 end
 

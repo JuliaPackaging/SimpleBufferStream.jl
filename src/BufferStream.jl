@@ -53,23 +53,29 @@ function append_chunk(bs::BufferStream, data::AbstractVector{UInt8})
         throw(ArgumentError("Stream is closed"))
     end
 
-    if bs.max_len != 0 && length(data) > bs.max_len
-        throw(ArgumentError("Chunk is too large to fit into this BufferStream!"))
-    end
-
     # Copy the data so that users can't clobber our internal list
     lock(bs.write_cond) do
-        # If we would exceed our maximum length, then we must wait until someone reads from us.
-        while bs.max_len != 0 && length(bs) + length(data) > bs.max_len
-            wait(bs.write_cond)
+        data_written = 0
+        while data_written < length(data)
+            if bs.max_len == 0
+                space_available = length(data)
+            else
+                space_available = bs.max_len - length(bs)
+            end
+            if space_available == 0
+                wait(bs.write_cond)
+                continue
+            end
+            bytes_to_write = min(space_available, length(data) - data_written)
+            push!(bs.chunks, data[data_written+1:data_written+bytes_to_write])
+            # Notify someone who was waiting for some data
+            lock(bs.read_cond) do
+                notify(bs.read_cond; all=false)
+            end
+            data_written += bytes_to_write
         end
-        push!(bs.chunks, data)
     end
 
-    # Notify someone who was waiting for some data
-    lock(bs.read_cond) do
-        notify(bs.read_cond; all=false)
-    end
     return length(data)
 end
 
