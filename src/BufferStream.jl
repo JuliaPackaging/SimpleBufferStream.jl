@@ -41,6 +41,7 @@ function length(bs::BufferStream)
         return len
     end
 end
+Base.bytesavailable(bs::BufferStream) = length(bs)
 function mem_usage(bs::BufferStream)
     lock(bs.write_cond) do
         return sum(Int[length(chunk) for chunk in bs.chunks])
