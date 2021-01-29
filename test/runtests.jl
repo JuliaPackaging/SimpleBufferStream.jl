@@ -77,6 +77,16 @@ using SimpleBufferStream, Test
     @test write(bs, UInt8(1)) == 1
     close(bs)
     @test read(bs) == UInt8[1]
+
+    # isreadable, iswritable, isopen
+    bs = BufferStream()
+    @test isopen(bs)
+    @test isreadable(bs)
+    @test iswritable(bs)
+    close(bs)
+    @test !isopen(bs)
+    @test isreadable(bs)
+    @test iswritable(bs)
 end
 
 @testset "max_len" begin

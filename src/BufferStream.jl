@@ -1,5 +1,5 @@
 export BufferStream, mem_usage, append_chunk
-import Base: write, read, readbytes!, readavailable, unsafe_write, wait, close, eof, isopen, skip, length
+import Base: write, read, readbytes!, readavailable, unsafe_write, wait, close, eof, isopen, isreadable, iswritable, skip, length
 
 """
     BufferStream
@@ -28,6 +28,8 @@ function close(bs::BufferStream)
 end
 
 isopen(bs::BufferStream) = bs.is_open
+isreadable(bs::BufferStream) = true
+iswritable(bs::BufferStream) = true
 eof(bs::BufferStream) = !isopen(bs) && isempty(bs.chunks)
 function length(bs::BufferStream)
     lock(bs.write_cond) do
