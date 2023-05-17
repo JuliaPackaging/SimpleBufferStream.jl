@@ -9,14 +9,14 @@ simultaneous reading of that data.  Intended for shuffling data between tasks.  
 performance is achieved by using `readavailable()`, which avoids copies on reads.
 """
 mutable struct BufferStream <: IO
-    chunks::Vector{AbstractVector{UInt8}}
+    chunks::Vector{Vector{UInt8}}
     chunk_read_idx::Int
     read_cond::Threads.Condition
     write_cond::Threads.Condition
     is_open::Bool
     max_len::Int
 
-    BufferStream(max_len::Int = 0) = new(AbstractVector{UInt8}[], 1, Threads.Condition(), Threads.Condition(), true, max_len)
+    BufferStream(max_len::Int = 0) = new(Vector{UInt8}[], 1, Threads.Condition(), Threads.Condition(), true, max_len)
 end
 
 # Close the stream, writing not allowed (but can still read until `eof()`)
@@ -104,17 +104,17 @@ function read(bs::BufferStream)
 end
 
 # Completely consume the first chunk.
-function readavailable(bs::BufferStream)
+function readavailable(bs::BufferStream)::SubArray{UInt8, 1, Vector{UInt8}, Tuple{UnitRange{Int64}}, true}
     lock(bs.read_cond) do
         if isempty(bs.chunks)
             if !isopen(bs)
-                return UInt8[]
+                return view(UInt8[], 1:0)
             end
             wait(bs.read_cond)
-            
+
             # Handle cancellation explicitly
             if isempty(bs.chunks)
-                return UInt8[]
+                return view(UInt8[], 1:0)
             end
         end
 
