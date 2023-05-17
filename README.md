@@ -11,6 +11,7 @@ See the tests for examples, but in a nut shell:
 buff = BufferStream()
 t_processor = @async process(buff)
 HTTP.get(url, response_stream=buff)
+close(buff)
 wait(t_processor)
 ```
 
