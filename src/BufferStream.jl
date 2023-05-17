@@ -67,7 +67,11 @@ function append_chunk(bs::BufferStream, data::AbstractVector{UInt8})
                 continue
             end
             bytes_to_write = min(space_available, length(data) - data_written)
-            push!(bs.chunks, data[data_written+1:data_written+bytes_to_write])
+            if data_written == 0 && bytes_to_write == length(data)
+                push!(bs.chunks, data)
+            else
+                push!(bs.chunks, data[data_written+1:data_written+bytes_to_write])
+            end
             # Notify someone who was waiting for some data
             lock(bs.read_cond) do
                 notify(bs.read_cond; all=false)
