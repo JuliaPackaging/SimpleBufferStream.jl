@@ -1,7 +1,7 @@
 name = "SimpleBufferStream"
 uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
 authors = ["Elliot Saba <staticfloat@gmail.com>"]
-version = "1.1.0"
+version = "1.2.0"
 
 [extras]
 Gzip_jll = "be1be57a-8558-53c3-a7e5-50095f79957e"
